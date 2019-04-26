@@ -1,0 +1,158 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+	<style type="text/css">
+		body, html {width: 100%;height: 100%; margin:0;font-family:"微软雅黑";}
+		#lmap{height:100%;width:100%;}
+	</style>
+	<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ak"></script>
+	<script type="text/javascript" src="http://api.map.baidu.com/library/GeoUtils/1.2/src/GeoUtils_min.js"></script>
+	<title>轨迹回放-判断车辆是否偏离路线</title>
+</head>
+<body>
+	<div id="lmap"></div>
+</body>
+</html>
+<script type="text/javascript">
+	var map = new BMap.Map("lmap",{
+		 enableMapClick: false	//关闭点击出弹框的事件
+	});
+	map.centerAndZoom(new BMap.Point(116.314, 39.915), 5);
+	map.enableScrollWheelZoom(true);
+	map.setMapStyle({style:'dark'});
+	
+	//原路径点坐标
+	var points = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.288926, 39.913818),
+		new BMap.Point(116.294747, 39.91379),
+		new BMap.Point(116.300819, 39.91368),
+		new BMap.Point(116.307359, 39.913624),
+		new BMap.Point(116.313791, 39.913486),
+		new BMap.Point(116.316953, 39.91653),
+		new BMap.Point(116.317061, 39.92364),
+		new BMap.Point(116.312701, 39.926143)
+	];
+	//车辆路径点坐标
+	var points1 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.312701, 39.926143)
+	]
+	var points2 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.313144, 39.919352)
+	]
+	var points3 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.32657, 39.900634)
+	]
+	var points4 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.301928, 39.923552)
+	]
+	var points5 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.315539, 39.927582)
+	]
+	var points6 = [
+		new BMap.Point(116.282549, 39.913672),
+		new BMap.Point(116.519108, 39.972399)
+	]
+//	var pointsData = [points4];
+	var pointsData = [points1,points2,points3,points4,points5];
+	var drivings = [];	
+	
+	var circles=[];
+   //遍历坐标集合，以每一个坐标点为圆心，创建圆
+   for(var i=0;i<points.length;i++){
+	   var c =points[i]; //圆心 
+	   var circle = new BMap.Circle(c, 500);//测试圆 200代表圆的半径距离 单位：米
+	   circles.push(circle);
+	}
+	function judgeRoure(data,index){
+		var time = (index+1)*2000;
+		var flag = false;
+		var linecolor = 'cadetblue';
+		//循环遍历判断车辆当前坐标点是否在圆里
+		for(var i=0;i<circles.length;i++){
+			var result = BMapLib.GeoUtils.isPointInCircle(data[data.length-1], circles[i]); 	//point:当前坐标点、circles[i]:规划好的圆
+			if(result == true){ 	//true：点是在圆圈里
+				flag = true;
+			   break;
+			}
+		}
+		setTimeout(function(){
+			run(data,index);
+		},time);
+		if(!flag){
+			linecolor = 'crimson';
+		}
+		drivings.push(new BMap.DrivingRoute(map, {
+			renderOptions: {
+				map: map, 
+				autoViewport: true
+			},
+			onPolylinesSet:function(route) { 
+	            map.addOverlay(new BMap.Polyline(route[0].getPath(), {strokeColor: linecolor,enableMassClear:true})); 
+	        }, 
+	        onMarkersSet:function(routes) {
+			    map.removeOverlay(routes[0].marker); //删除起点
+			    map.removeOverlay(routes[1].marker);//删除终点 
+	   	    }
+		}));
+	}
+	
+	for(var i=0; i<pointsData.length; i++){
+		judgeRoure(pointsData[i],i);
+		var data = pointsData[i];
+		var len = data.length-1;
+		drivings[i].search(data[0],data[len]);
+	}
+	
+//	//点击事件
+//	function showInfo(e){
+//		console.log(e.point.lng + ", " + e.point.lat);
+//	}
+//	map.addEventListener("click", showInfo);
+	
+	var myIcon = new BMap.Icon("img/car.png", new BMap.Size(32, 32), {    //以给定的图像地址和大小创建图标对象实例
+		imageOffset: new BMap.Size(0, 0)    //图片的偏移量。为了是图片底部中心对准坐标点。
+	});
+	function run(data,index){
+		//console.log(data)
+		var driving = new BMap.DrivingRoute(map);    //驾车实例
+		driving.search(data[0], data[data.length-1]);
+		driving.setSearchCompleteCallback(function(){
+			var pts = driving.getResults().getPlan(0).getRoute(0).getPath();    //通过驾车实例，获得一系列点的数组
+			var paths = pts.length;    //获得有几个点
+			//console.log(paths)
+			var carMk = new BMap.Marker(pts[0],{icon:myIcon}); //创建一个图像标注实例
+			var carLabel = new BMap.Label('车辆'+(index+1),{
+				offset: new BMap.Size(-15, -30)
+			})
+			carLabel.setStyle({
+				color: 'white',
+				background: '#222',
+				border: 0
+			});
+			map.addOverlay(carMk);
+			map.addOverlay(carLabel);
+			i=0;
+			function resetMkPoint(i){
+				carMk.setPosition(pts[i]);	//设置标注的地理坐标
+				carLabel.setPosition(pts[i]);
+				if(i < paths){
+					setTimeout(function(){
+						i++;
+						resetMkPoint(i);
+					},200);
+				}
+			}
+			setTimeout(function(){
+				resetMkPoint(5);
+			},200)
+		});
+	}
+
+</script>

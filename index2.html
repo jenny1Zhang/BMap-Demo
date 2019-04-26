@@ -1,0 +1,208 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />  
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />  
+	<title>实时判断车辆是否偏离路线</title>  
+	<style type="text/css">  
+		html{height:100%}  
+		body{height:100%;margin:0px;padding:0px}  
+		#container{height:100%;margin: 20px;}  
+	</style>  
+	<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ak"></script>
+	<script type="text/javascript" src="http://api.map.baidu.com/library/GeoUtils/1.2/src/GeoUtils_min.js"></script>
+
+</head>  
+
+<body>  
+	<div id="container"></div> 
+	<script type="text/javascript"> 
+		var pointsData = [
+			[116.284673, 39.913793],
+			[116.286344, 39.913793],
+			[116.28859, 39.913765],
+			[116.290584, 39.913696],
+			[116.292309, 39.913779],
+			[116.29389, 39.913682],
+			[116.295848, 39.913682],
+			[116.297304, 39.913779],
+			[116.299082, 39.913655],
+			[116.300322, 39.913613],
+			[116.301364, 39.91371],
+			[116.302622, 39.913599],
+			[116.304364, 39.913655],
+			[116.306251, 39.913558],
+			[116.307724, 39.913613],
+			[116.308964, 39.913641],
+			[116.310832, 39.913585],
+			[116.312737, 39.91353],
+			[116.314767, 39.913447],
+			[116.316743, 39.913322],
+			[116.316905, 39.914415],
+			[116.316905, 39.915578],
+			[116.316977, 39.916837],
+			[116.316887, 39.918428],
+			[116.316977, 39.921042],
+			[116.316923, 39.922606],
+			[116.317012, 39.925026],
+			[116.316959, 39.92641],
+			[116.316941, 39.927157],
+			[116.316509, 39.92717],
+			[116.316474, 39.926396],
+			[116.316456, 39.925815],
+			[116.315036, 39.925815],
+			[116.313868, 39.925801],
+			[116.31306, 39.926174]
+		];
+//		var pointsData = [
+//			[116.282549, 39.913672],
+//			[116.288926, 39.913818],
+//			[116.294747, 39.91379],
+//			[116.300819, 39.91368],
+//			[116.307359, 39.913624],
+//			[116.313791, 39.913486],
+//			[116.316953, 39.91653],
+//			[116.317061, 39.92364],
+//			[116.312701, 39.926143]
+//		];
+		var points1 = [
+			[116.283973, 39.91371],
+			[116.28559, 39.913793],
+			[116.287135, 39.913765],
+			[116.288428, 39.913793],
+			[116.289848, 39.91371],
+			[116.289812, 39.915121],
+			[116.28983, 39.916449],
+			[116.289866, 39.917681],
+			[116.289848, 39.919064],
+			[116.291608, 39.919161],
+			[116.293153, 39.919216],
+			[116.295184, 39.919216],
+			[116.29698, 39.919202],
+			[116.29901, 39.919202],
+			[116.3014, 39.919106],
+			[116.30158, 39.920669],
+			[116.30158, 39.922246],
+			[116.301687, 39.923532]
+		]
+		
+		var datas = [
+			{
+				name: '车辆1',
+				point: points1
+			},
+			{
+				name: '车辆2',
+				point: pointsData
+			}
+		]   
+
+		//添加线
+		function addLine(points,index,bPoints,carMk,carLabel){
+			//console.log(bPoints[index])
+			var flag = false;
+			var linecolor = "cadetblue";
+			for(var i=0;i<circles.length;i++){
+				var result = BMapLib.GeoUtils.isPointInCircle(bPoints[index], circles[i]); 	//point:当前坐标点、circles[i]:规划好的圆
+				//console.log(result)
+				if(result == true){ 	//true：点是在圆圈里
+				   flag = true;
+				   break;
+				}
+			}
+			if(!flag){
+				linecolor = 'crimson';
+			}
+			var linePoints = [],pointsLen = points.length,i,polyline;
+			if(pointsLen == 0){
+				return;
+			}
+			// 创建标注对象并添加到地图   
+			for(i = 0;i <pointsLen;i++){
+				linePoints.push(new BMap.Point(points[i].lng,points[i].lat));
+			}
+			polyline = new BMap.Polyline(linePoints, {strokeColor: linecolor, strokeWeight:5, strokeOpacity:0.8});   //创建折线
+			map.addOverlay(polyline);   //增加折线
+			carMk.setPosition(bPoints[index]);
+			carLabel.setPosition(bPoints[index]);
+		}
+
+		//随机生成新的点，加入到轨迹中。
+		function dynamicLine(points,bPoints,data,index,carMk,carLabel){
+			//console.log(data,index)
+			var lng = data[index][0];
+			var lat = data[index][1];
+			var point = {"lng":lng,"lat":lat}
+			var newLinePoints = [];
+			var len;		
+			points.push(point);
+			bPoints.push(new BMap.Point(lng,lat));
+			len = points.length;
+			newLinePoints = points.slice(len-2, len);//最后两个点用来画线。
+
+			addLine(newLinePoints,index,bPoints,carMk,carLabel);//增加轨迹线
+			//setZoom(bPoints);
+			if(index<data.length-1){
+				setTimeout(function(){
+					dynamicLine(points,bPoints,data,++index,carMk,carLabel)
+				}, 1000);
+			}
+			
+		}
+
+		//根据点信息实时更新地图显示范围，让轨迹完整显示。设置新的中心点和显示级别. 
+		//更新。设置不是每次增加点都重新设置显示范围。因为有可能会想放大了看。
+		function setZoom(bPoints){
+			var view = map.getViewport(eval(bPoints));
+			if(map.oldView != JSON.stringify(view)){
+				var mapZoom = view.zoom; 
+				var centerPoint = view.center; 
+				map.centerAndZoom(centerPoint,mapZoom);
+				map.oldView = JSON.stringify(view);
+			}
+
+		}
+		
+	   var circles=[];
+	   //遍历坐标集合，以每一个坐标点为圆心，创建圆
+	   for(var i=0;i<pointsData.length;i++){
+		   var c =new BMap.Point(pointsData[i][0],pointsData[i][1]); //圆心 
+		   var circle = new BMap.Circle(c, 200);//测试圆 200代表圆的半径距离 单位：米
+		   circles.push(circle);
+		}
+
+
+		//地图操作开始
+		var map = new BMap.Map("container",{
+			 enableMapClick: false	//关闭点击出弹框的事件
+		});  
+		map.centerAndZoom(new BMap.Point(116.3, 39.915), 16); //初始显示中国。
+		map.enableScrollWheelZoom();//滚轮放大缩小
+		map.setMapStyle({style:'dark'});
+		
+		for(let ind=0; ind<datas.length; ind++){
+			setTimeout(function(){
+				var points = [];//原始点信息数组
+				var bPoints = [];//百度化坐标数组。用于更新显示范围。
+				var myIcon = new BMap.Icon("img/car.png", new BMap.Size(32, 32), {    //以给定的图像地址和大小创建图标对象实例
+					imageOffset: new BMap.Size(0, 0)    //图片的偏移量。为了是图片底部中心对准坐标点。
+				});
+				var carMk = new BMap.Marker(new BMap.Point(datas[0].point[0][0],datas[0].point[0][1]),{icon:myIcon});
+				var carLabel = new BMap.Label(datas[ind].name,{
+					offset: new BMap.Size(-15, -30)
+				})
+				carLabel.setStyle({
+					color: 'white',
+					background: '#222',
+					border: 0
+				});
+				map.addOverlay(carMk);
+				map.addOverlay(carLabel);
+				dynamicLine(points,bPoints,datas[ind].point,0,carMk,carLabel);
+			},1000);
+		}
+
+
+	</script>  
+</body>  
+</html>
